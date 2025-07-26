@@ -13,6 +13,17 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY!
 );
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*', // Or specify your allowed origin
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { rows }: { rows: FormRow[] } = await request.json();
@@ -35,7 +46,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    response.headers.set('Access-Control-Allow-Origin', '*'); // Or your allowed origin
+    return response;
   } catch (error) {
     console.error('Database error:', error);
     return NextResponse.json(
