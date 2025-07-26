@@ -4,11 +4,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
-
-  const { rows } = req.body;
-  if (!Array.isArray(rows)) return res.status(400).send('Invalid data');
-
   // Connect to your external MySQL database using env variables
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -17,12 +12,33 @@ export default async function handler(req, res) {
     database: process.env.DB_NAME
   });
 
-  await connection.query('DELETE FROM form_rows');
-  if (rows.length > 0) {
-    const values = rows.map(row => [row.name, row.amount]);
-    await connection.query('INSERT INTO form_rows (name, amount) VALUES ?', [values]);
-  }
-  await connection.end();
+  try {
+    if (req.method === 'POST') {
+      // ADD: Add a new row
+      const { name, amount } = req.body;
+      if (!name || !amount) return res.status(400).send('Missing data');
+      await connection.query('INSERT INTO form_rows (name, amount) VALUES (?, ?)', [name, amount]);
+      return res.json({ success: true, action: 'add' });
+    }
 
-  res.json({ success: true });
+    if (req.method === 'PUT') {
+      // EDIT: Update an existing row
+      const { id, name, amount } = req.body;
+      if (!id || !name || !amount) return res.status(400).send('Missing data');
+      await connection.query('UPDATE form_rows SET name = ?, amount = ? WHERE id = ?', [name, amount, id]);
+      return res.json({ success: true, action: 'edit' });
+    }
+
+    if (req.method === 'DELETE') {
+      // DELETE: Delete a row
+      const { id } = req.body;
+      if (!id) return res.status(400).send('Missing id');
+      await connection.query('DELETE FROM form_rows WHERE id = ?', [id]);
+      return res.json({ success: true, action: 'delete' });
+    }
+
+    return res.status(405).end();
+  } finally {
+    await connection.end();
+  }
 }
